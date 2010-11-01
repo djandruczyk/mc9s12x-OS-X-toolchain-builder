@@ -1,0 +1,270 @@
+#!/bin/bash
+# Making FreeEMS Crosstools for FreeEMS under OS-X 
+#
+# David J. Andruczyk, 2010
+#
+
+# ADJUST THIS TO SUIT
+
+CWD=$(pwd)
+
+DSTDIR=${CWD}/toolchain
+
+function build_mc9s12x_binutils {
+# First: build binutils for 9s12x
+echo "mc9s12x binutils!"
+if [ -f mc9s12x-build/GOOD ] ; then
+        return 0
+fi
+if [ -d mc9s12x-build ] ; then
+	rm -rf mc9s12x-build
+fi
+mkdir mc9s12x-build 
+pushd mc9s12x-build 
+${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,mc9xgate --program-prefix=m68hc11- --disable-nls --prefix=${DSTDIR} && \
+make && \
+make install && \
+popd
+if [ $? -eq 0 ]; then
+        touch mc9s12x-build/GOOD
+        return 0
+else
+        return $?
+fi
+}
+
+function build_mc9xgate_binutils {
+echo "mc9xgate binutils!"
+# make xgate version
+if [ -f mc9xgate-build/GOOD ] ; then
+        return 0
+fi
+if [ -d mc9xgate-build ] ; then
+	rm -rf mc9xgate-build
+fi
+mkdir mc9xgate-build 
+pushd mc9xgate-build 
+${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=mc9xgate --enable-targets=mc9xgate --program-prefix=mc9xgate- --disable-nls --prefix="$DSTDIR" && \
+make && \
+make install && \
+popd 
+if [ $? -eq 0 ]; then
+        touch mc9xgate-build/GOOD
+        return 0
+else
+        return $?
+fi
+}
+
+function build_gcc {
+if [ -f gcc-build/GOOD ] ; then
+        return 0
+fi
+if [ -d gcc-build ] ; then
+	rm -rf gcc-build
+fi
+mkdir gcc-build
+pushd gcc-build
+OLDPATH=$PATH
+export PATH=$DSTDIR/bin:$PATH
+${CWD}/gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
+make &&
+make install && \
+export PATH=$OLDPATH && \
+popd
+if [ $? -eq 0 ]; then
+        touch gcc-build/GOOD
+        return 0
+else
+        return $?
+fi
+}
+
+function build_newlib {
+#Now newlib
+#RESET ENV VARS back to normal, as newlib sets things up its own way
+if [ -f newlib-build/GOOD ] ; then
+        return 0
+fi
+if [ -d newlib-build ] ; then
+	rm -rf newlib-build
+fi
+mkdir newlib-build
+OLDPATH=$PATH
+export PATH=$DSTDIR/bin:$PATH
+pushd newlib-build && \
+${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --with-newlib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
+make  && \
+make install && \
+export PATH=$OLDPATH && \
+popd
+if [ $? -eq 0 ]; then
+        touch newlib-build/GOOD
+        return 0
+else
+        return $?
+fi
+}
+
+
+function build_toolchain {
+# Make a clean TARGET location to stick everything
+if [ ! -d "$DSTDIR" ]; then
+	mkdir "$DSTDIR"
+else
+	echo "$DSTDIR ALREADY EXISTS, thismay not be what you want!!!"
+	sleep 2
+fi
+echo "Target is ${DSTDIR}"	
+build_mc9s12x_binutils
+res=$?
+binutils_mc9s12x_res=$res
+if [ $res -ne 0 ] ; then
+	printf "\b\nFailure compiling hcs12x binutils, result code %i\n" $res
+	exit -1
+fi
+build_mc9xgate_binutils
+res=$?
+binutils_mc9xgate_res=$res
+if [ $res -ne 0 ] ; then
+	printf "\b\nFailure compiling mc9xgate binutils, result code %i\n" $res
+	exit -1
+fi
+
+build_gcc
+res=$?
+gcc_res=$?
+if [ $res -ne 0 ] ; then
+	printf "\b\nFailure compiling GCC, result code %i\n" $res
+	exit -1
+fi
+
+build_newlib
+res=$?
+newlib_res=$?
+if [ $res -ne 0 ] ; then
+	printf "\b\nFailure compiling newlib, result code %i\n" $res
+	exit -1
+fi
+
+echo "
+	Compilation Results:
+	Binutils OS-X->hc11:         $binutils_mc9s12x_res
+	Binutils OS-X->xgate:        $binutils_mc9xgate_res
+	GCC OS-X->hc11:		     $gcc_res
+	Newlib OS-X->hc11:           $newlib_res
+
+		"
+
+if [ $binutils_mc9s12x_res -eq 0 ] && \
+	[ $binutils_mc9xgate_res -eq 0 ] && \
+	[ $gcc_res -eq 0 ] && \
+	[ $newlib_res -eq 0 ] ; then
+	echo "Everything compiled OK!!!"
+fi
+}
+
+function cleanup {
+	echo "Cleaning out build directories"
+	clean_binutils
+	clean_gcc
+	clean_newlib
+	echo "All build dirs cleaned out"
+}
+
+function clean_binutils {
+	if [ -d mc9s12x-build ] ; then
+		rm -rf mc9s12x-build
+	fi
+	if [ -d mc9xgate-build ] ; then
+		rm -rf mc9xgate-build
+	fi
+}
+
+function dl_binutils {
+	# checkout seank's FreeScale-s12x-binutils
+	echo "Cloning binutils git tree locally"
+	if [ ! -d FreeScale-s12x-binutils ] ; then
+		git clone http://github.com/seank/FreeScale-s12x-binutils.git 
+		patch -p0 <binutils-osx.diff
+	fi
+}
+
+function clean_gcc {
+	# I used the sources from gcc-m68hc1x from ubuntu/debian
+	if [ -d gcc-build ] ; then
+		rm -rf gcc-build
+	fi
+}
+
+function prep_gcc {
+	echo "Prepping GCC source"
+	if [ -f gcc-m68hc1x_3.3.6+3.1+dfsg/PREPPED ] ; then
+		return
+	fi
+	if [ ! -d gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6 ] ; then
+		tar xvzf gcc-m68hc1x_3.3.6+3.1+dfsg.orig.tar.gz
+		gunzip -cd gcc-m68hc1x_3.3.6+3.1+dfsg-3.diff.gz |patch -p0
+		pushd gcc-m68hc1x-3.3.6+3.1+dfsg 
+		tar xvfj gcc-3.3.6.tar.bz2 && \
+		pushd gcc-3.3.6 
+		cat ../gcc-3.3.6-m68hc1x-20060122.diffs |patch -p1 
+		touch PREPPED
+		popd
+		popd
+	fi
+}
+
+function clean_newlib {
+	# I used the sources from newlib-m68hc1x from ubuntu/debian
+	if [ -d newlib-build ] ; then
+		rm -rf newlib-build
+	fi
+}
+
+function prep_newlib {
+	# I used the sources from newlib-m68hc1x from ubuntu/debian
+	echo "Prepping newlib source"
+	if [ -f newlib-1.18.0/PREPPED ] ; then
+		return
+	fi
+	if [ ! -d newlib-1.18.0 ] ; then
+		tar xvzf newlib_1.18.0.orig.tar.gz
+	fi
+}
+
+function done_all {
+	echo "
+
+				ALL DONE!!!
+Binary should be in the $CWD/Output Directory
+	
+"
+}
+
+if [ $# -ne 1 ] ; then
+	echo "Invalid args, need <all|get_binutils|get_pre_reqs|buildpkg|clean>"
+	exit
+fi
+
+case "$1" in
+	all) 
+	dl_binutils
+	prep_gcc
+	prep_newlib
+	build_toolchain 
+	done_all
+	;;
+	get_pre_reqs)
+	dl_binutils
+	prep_gcc
+	prep_newlib
+	;;
+	clean)
+	cleanup
+	;;
+	*)
+	echo "Invalid choice!"
+	exit -1
+	;;
+esac
