@@ -93,7 +93,7 @@ mkdir newlib-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
 pushd newlib-build && \
-${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --with-newlib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
+${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
 make  && \
 make install && \
 export PATH=$OLDPATH && \
@@ -243,7 +243,7 @@ Binary should be in the $CWD/Output Directory
 }
 
 if [ $# -ne 1 ] ; then
-	echo "Invalid args, need <all|get_binutils|get_pre_reqs|buildpkg|clean>"
+	echo "Invalid args, need <all|get_pre_reqs|clean>"
 	exit
 fi
 
