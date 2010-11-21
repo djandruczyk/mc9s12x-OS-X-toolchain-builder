@@ -1,0 +1,16 @@
+
+This rudimentary script builds the OS-X toolchain for FreeEMS
+run "./make_OS-X_toolchain all" and go do something for 45 minutes.
+
+
+If you look at "make_OS-X_toolchain", itl install everything into the 
+$CWD/toolchain (current directory/toolchain). Move the contents wherever
+you wish and set path acordingly.
+
+i.e.
+
+./make_OS-X_toolchain all
+  < wait till it completes >
+sudo mv toolchain /opt/FreeEMS-Toolchain
+export PATH=$PATH:/opt/FreeEMS-Toolchain
+
