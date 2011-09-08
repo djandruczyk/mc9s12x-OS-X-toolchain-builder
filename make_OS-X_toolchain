@@ -9,6 +9,21 @@
 CWD=$(pwd)
 
 DSTDIR=${CWD}/toolchain
+CC=gcc
+HAVE_LLVM=$(gcc -v 2>&1|grep -c LLVM)
+if [ $HAVE_LLVM -gt 0 ] ; then
+	echo "LLVM compiler detected, searching for alternative..."
+	for i in `ls -1 /usr/bin |grep gcc` ; do
+		if [ $(${i} -v 2>&1|grep -c LLVM) -eq 1 ] ; then
+			echo "$i is unsuitable"
+		else
+			echo "$i is OK"
+			CC=$i
+			break;
+		fi
+	done
+fi
+#echo "CC is $CC"
 
 function build_mc9s12x_binutils {
 # First: build binutils for 9s12x
@@ -21,6 +36,7 @@ if [ -d mc9s12x-build ] ; then
 fi
 mkdir mc9s12x-build 
 pushd mc9s12x-build 
+export CC=${CC}
 ${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,mc9xgate --program-prefix=m68hc11- --disable-nls --prefix=${DSTDIR} && \
 make && \
 make install && \
@@ -44,6 +60,7 @@ if [ -d mc9xgate-build ] ; then
 fi
 mkdir mc9xgate-build 
 pushd mc9xgate-build 
+export CC=${CC}
 ${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=mc9xgate --enable-targets=mc9xgate --program-prefix=mc9xgate- --disable-nls --prefix="$DSTDIR" && \
 make && \
 make install && \
@@ -67,6 +84,7 @@ mkdir gcc-build
 pushd gcc-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
+export CC=${CC}
 ${CWD}/gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
 make &&
 make install && \
@@ -92,6 +110,7 @@ fi
 mkdir newlib-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
+export CC=${CC}
 pushd newlib-build && \
 ${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
 make  && \
