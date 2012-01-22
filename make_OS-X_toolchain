@@ -9,6 +9,21 @@
 CWD=$(pwd)
 
 DSTDIR=${CWD}/toolchain
+CC=gcc
+HAVE_LLVM=$(gcc -v 2>&1|grep -c LLVM)
+if [ $HAVE_LLVM -gt 0 ] ; then
+	echo "LLVM compiler detected, searching for alternative..."
+	for i in `ls -1 /usr/bin |grep gcc` ; do
+		if [ $(${i} -v 2>&1|grep -c LLVM) -eq 1 ] ; then
+			echo "$i is unsuitable"
+		else
+			echo "$i is OK"
+			CC=$i
+			break;
+		fi
+	done
+fi
+#echo "CC is $CC"
 
 function build_m68hcs12x_binutils {
 # First: build binutils for m68hcs12x
@@ -67,6 +82,7 @@ mkdir gcc-build
 pushd gcc-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
+export CC=${CC}
 ${CWD}/gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
 make &&
 make install && \
@@ -92,6 +108,7 @@ fi
 mkdir newlib-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
+export CC=${CC}
 pushd newlib-build && \
 ${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
 make  && \
