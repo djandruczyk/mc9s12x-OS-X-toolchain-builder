@@ -10,46 +10,46 @@ CWD=$(pwd)
 
 DSTDIR=${CWD}/toolchain
 
-function build_mc9s12x_binutils {
-# First: build binutils for 9s12x
-echo "mc9s12x binutils!"
-if [ -f mc9s12x-build/GOOD ] ; then
+function build_m68hcs12x_binutils {
+# First: build binutils for m68hcs12x
+echo "m68hcs12x binutils!"
+if [ -f m68hcs12x-build/GOOD ] ; then
         return 0
 fi
-if [ -d mc9s12x-build ] ; then
-	rm -rf mc9s12x-build
+if [ -d m68hcs12x-build ] ; then
+	rm -rf m68hcs12x-build
 fi
-mkdir mc9s12x-build 
-pushd mc9s12x-build 
-${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,mc9xgate --program-prefix=m68hc11- --disable-nls --prefix=${DSTDIR} && \
+mkdir m68hcs12x-build 
+pushd m68hcs12x-build 
+${CWD}/FreeScale-s12x-binutils/binutils-2.22.0/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix=${DSTDIR} && \
 make && \
 make install && \
 popd
 if [ $? -eq 0 ]; then
-        touch mc9s12x-build/GOOD
+        touch m68hcs12x-build/GOOD
         return 0
 else
         return $?
 fi
 }
 
-function build_mc9xgate_binutils {
-echo "mc9xgate binutils!"
+function build_xgate_binutils {
+echo "xgate binutils!"
 # make xgate version
-if [ -f mc9xgate-build/GOOD ] ; then
+if [ -f xgate-build/GOOD ] ; then
         return 0
 fi
-if [ -d mc9xgate-build ] ; then
-	rm -rf mc9xgate-build
+if [ -d xgate-build ] ; then
+	rm -rf xgate-build
 fi
-mkdir mc9xgate-build 
-pushd mc9xgate-build 
-${CWD}/FreeScale-s12x-binutils/binutils-2.20/configure --disable-werror --target=mc9xgate --enable-targets=mc9xgate --program-prefix=mc9xgate- --disable-nls --prefix="$DSTDIR" && \
+mkdir xgate-build 
+pushd xgate-build 
+${CWD}/FreeScale-s12x-binutils/binutils-2.22.0/configure --disable-werror --target=xgate --enable-targets=xgate --program-prefix=xgate- --disable-nls --prefix="$DSTDIR" && \
 make && \
 make install && \
 popd 
 if [ $? -eq 0 ]; then
-        touch mc9xgate-build/GOOD
+        touch xgate-build/GOOD
         return 0
 else
         return $?
@@ -116,18 +116,18 @@ else
 	sleep 2
 fi
 echo "Target is ${DSTDIR}"	
-build_mc9s12x_binutils
+build_m68hcs12x_binutils
 res=$?
-binutils_mc9s12x_res=$res
+binutils_m68hcs12x_res=$res
 if [ $res -ne 0 ] ; then
 	printf "\b\nFailure compiling hcs12x binutils, result code %i\n" $res
 	exit -1
 fi
-build_mc9xgate_binutils
+build_xgate_binutils
 res=$?
-binutils_mc9xgate_res=$res
+binutils_xgate_res=$res
 if [ $res -ne 0 ] ; then
-	printf "\b\nFailure compiling mc9xgate binutils, result code %i\n" $res
+	printf "\b\nFailure compiling xgate binutils, result code %i\n" $res
 	exit -1
 fi
 
@@ -149,15 +149,15 @@ fi
 
 echo "
 	Compilation Results:
-	Binutils OS-X->hc11:         $binutils_mc9s12x_res
-	Binutils OS-X->xgate:        $binutils_mc9xgate_res
+	Binutils OS-X->hc11:         $binutils_m68hcs12x_res
+	Binutils OS-X->xgate:        $binutils_xgate_res
 	GCC OS-X->hc11:		     $gcc_res
 	Newlib OS-X->hc11:           $newlib_res
 
 		"
 
-if [ $binutils_mc9s12x_res -eq 0 ] && \
-	[ $binutils_mc9xgate_res -eq 0 ] && \
+if [ $binutils_m68hcs12x_res -eq 0 ] && \
+	[ $binutils_xgate_res -eq 0 ] && \
 	[ $gcc_res -eq 0 ] && \
 	[ $newlib_res -eq 0 ] ; then
 	echo "Everything compiled OK!!!"
@@ -173,20 +173,20 @@ function cleanup {
 }
 
 function clean_binutils {
-	if [ -d mc9s12x-build ] ; then
-		rm -rf mc9s12x-build
+	if [ -d m68hcs12x-build ] ; then
+		rm -rf m68hcs12x-build
 	fi
-	if [ -d mc9xgate-build ] ; then
-		rm -rf mc9xgate-build
+	if [ -d xgate-build ] ; then
+		rm -rf xgate-build
 	fi
 }
 
 function dl_binutils {
-	# checkout seank's FreeScale-s12x-binutils
+	# checkout Dave's fork of Seank's FreeScale-s12x-binutils
 	echo "Cloning binutils git tree locally"
 	if [ ! -d FreeScale-s12x-binutils ] ; then
-		git clone http://github.com/seank/FreeScale-s12x-binutils.git 
-		patch -p0 <binutils-osx.diff
+		git clone http://github.com/dandruczyk/FreeScale-s12x-binutils.git 
+		#patch -p0 < binutils-osx.diff
 	fi
 }
 
