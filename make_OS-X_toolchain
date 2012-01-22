@@ -202,7 +202,7 @@ function dl_binutils {
 	# checkout Dave's fork of Seank's FreeScale-s12x-binutils
 	echo "Cloning binutils git tree locally"
 	if [ ! -d FreeScale-s12x-binutils ] ; then
-		git clone http://github.com/dandruczyk/FreeScale-s12x-binutils.git 
+		git clone http://github.com/djandruczyk/FreeScale-s12x-binutils.git 
 		#patch -p0 < binutils-osx.diff
 	fi
 }
