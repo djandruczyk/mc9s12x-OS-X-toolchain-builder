@@ -25,23 +25,25 @@ if [ $HAVE_LLVM -gt 0 ] ; then
 fi
 #echo "CC is $CC"
 
-function build_m68hcs12x_binutils {
-# First: build binutils for m68hcs12x
-echo "m68hcs12x binutils!"
-if [ -f m68hcs12x-build/GOOD ] ; then
+function build_mc9s12x_binutils {
+pushd "${BUILDDIR}" >/dev/null
+# First: build binutils for mc9s12x
+echo "mc9s12x binutils!"
+if [ -f mc9s12x-build/GOOD ] ; then
         return 0
 fi
-if [ -d m68hcs12x-build ] ; then
-	rm -rf m68hcs12x-build
+if [ -d mc9s12x-build ] ; then
+	rm -rf mc9s12x-build
 fi
-mkdir m68hcs12x-build 
-pushd m68hcs12x-build 
-${CWD}/FreeScale-s12x-binutils/binutils-2.22.0/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix=${DSTDIR} && \
-make && \
+mkdir mc9s12x-build 
+pushd mc9s12x-build  >/dev/null
+"${BUILDDIR}"/FreeScale-s12x-binutils/src/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
+make -j"${PROCS}" && \
 make install && \
-popd
+popd >/dev/null && \
+popd >/dev/null
 if [ $? -eq 0 ]; then
-        touch m68hcs12x-build/GOOD
+        touch mc9s12x-build/GOOD
         return 0
 else
         return $?
@@ -49,6 +51,7 @@ fi
 }
 
 function build_xgate_binutils {
+pushd "${BUILDDIR}" >/dev/null
 echo "xgate binutils!"
 # make xgate version
 if [ -f xgate-build/GOOD ] ; then
@@ -59,10 +62,11 @@ if [ -d xgate-build ] ; then
 fi
 mkdir xgate-build 
 pushd xgate-build 
-${CWD}/FreeScale-s12x-binutils/binutils-2.22.0/configure --disable-werror --target=xgate --enable-targets=xgate --program-prefix=xgate- --disable-nls --prefix="$DSTDIR" && \
+"${BUILDDIR}"/FreeScale-s12x-binutils/src/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
 make && \
 make install && \
-popd 
+popd >/dev/null && \
+popd >/dev/null
 if [ $? -eq 0 ]; then
         touch xgate-build/GOOD
         return 0
@@ -72,6 +76,7 @@ fi
 }
 
 function build_gcc {
+pushd "${BUILDDIR}" >/dev/null
 if [ -f gcc-build/GOOD ] ; then
         return 0
 fi
@@ -83,11 +88,12 @@ pushd gcc-build
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
 export CC=${CC}
-${CWD}/gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
+"${BUILDDIR}"/FreeScale-s12x-gcc/src/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
 make &&
 make install && \
 export PATH=$OLDPATH && \
-popd
+popd >/dev/null && \
+popd >/dev/null
 if [ $? -eq 0 ]; then
         touch gcc-build/GOOD
         return 0
@@ -99,6 +105,7 @@ fi
 function build_newlib {
 #Now newlib
 #RESET ENV VARS back to normal, as newlib sets things up its own way
+pushd "${BUILDDIR}" >/dev/null
 if [ -f newlib-build/GOOD ] ; then
         return 0
 fi
@@ -106,14 +113,14 @@ if [ -d newlib-build ] ; then
 	rm -rf newlib-build
 fi
 mkdir newlib-build
-OLDPATH=$PATH
-export PATH=$DSTDIR/bin:$PATH
+OLDPATH="${PATH}"
+export PATH="${DSTDIR}"/bin:"${PATH}"
 export CC=${CC}
 pushd newlib-build && \
-${CWD}/newlib-1.18.0/configure --build=i686-pc-linux-gnu --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="$DSTDIR" && \
+"${BUILDDIR}"/FreeScale-s12x-newlib/src/configure --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="${DSTDIR}" && \
 make  && \
 make install && \
-export PATH=$OLDPATH && \
+export PATH="${OLDPATH}" && \
 popd
 if [ $? -eq 0 ]; then
         touch newlib-build/GOOD
@@ -126,16 +133,16 @@ fi
 
 function build_toolchain {
 # Make a clean TARGET location to stick everything
-if [ ! -d "$DSTDIR" ]; then
-	mkdir "$DSTDIR"
+if [ ! -d "${DSTDIR}" ]; then
+	mkdir "${DSTDIR}"
 else
-	echo "$DSTDIR ALREADY EXISTS, thismay not be what you want!!!"
+	echo "${DSTDIR} ALREADY EXISTS, thismay not be what you want!!!"
 	sleep 2
 fi
 echo "Target is ${DSTDIR}"	
-build_m68hcs12x_binutils
+build_mc9s12x_binutils
 res=$?
-binutils_m68hcs12x_res=$res
+binutils_mc9s12x_res=$res
 if [ $res -ne 0 ] ; then
 	printf "\b\nFailure compiling hcs12x binutils, result code %i\n" $res
 	exit -1
@@ -166,14 +173,14 @@ fi
 
 echo "
 	Compilation Results:
-	Binutils OS-X->hc11:         $binutils_m68hcs12x_res
+	Binutils OS-X->hc11:         $binutils_mc9s12x_res
 	Binutils OS-X->xgate:        $binutils_xgate_res
 	GCC OS-X->hc11:		     $gcc_res
 	Newlib OS-X->hc11:           $newlib_res
 
 		"
 
-if [ $binutils_m68hcs12x_res -eq 0 ] && \
+if [ $binutils_mc9s12x_res -eq 0 ] && \
 	[ $binutils_xgate_res -eq 0 ] && \
 	[ $gcc_res -eq 0 ] && \
 	[ $newlib_res -eq 0 ] ; then
@@ -190,8 +197,9 @@ function cleanup {
 }
 
 function clean_binutils {
-	if [ -d m68hcs12x-build ] ; then
-		rm -rf m68hcs12x-build
+pushd "${BUILDDIR}" >/dev/null
+	if [ -d mc9s12x-build ] ; then
+		rm -rf mc9s12x-build
 	fi
 	if [ -d xgate-build ] ; then
 		rm -rf xgate-build
@@ -199,66 +207,68 @@ function clean_binutils {
 }
 
 function dl_binutils {
-	# checkout Dave's fork of Seank's FreeScale-s12x-binutils
-	echo "Cloning binutils git tree locally"
-	if [ ! -d FreeScale-s12x-binutils ] ; then
-		git clone http://github.com/djandruczyk/FreeScale-s12x-binutils.git 
-	else
-		pushd FreeScale-s12x-binutils
-		git pull
-		popd
-	fi
+# checkout Dave's fork of Seank's FreeScale-s12x-binutils
+pushd "${BUILDDIR}" >/dev/null
+echo "Cloning binutils git tree locally"
+if [ ! -d FreeScale-s12x-binutils ] ; then
+	git clone http://github.com/djandruczyk/FreeScale-s12x-binutils.git 
+else
+	pushd FreeScale-s12x-binutils
+	git pull
+	popd
+fi
+popd >/dev/null
+}
+
+function dl_gcc {                                                               
+pushd "${BUILDDIR}" >/dev/null
+if [ ! -d FreeScale-s12x-gcc ] ; then
+    echo "Downloading GCC from seank's repo"
+    git clone git://github.com/seank/FreeScale-s12x-gcc.git
+else
+    pushd FreeScale-s12x-gcc >/dev/null
+    git pull
+    popd >/dev/null
+fi
+popd >/dev/null
+}
+
+function dl_newlib {
+pushd "${BUILDDIR}" >/dev/null
+if [ ! -d FreeScale-s12x-newlib ] ; then
+	git clone git://github.com/seank/FreeScale-s12x-newlib.git
+else
+	pushd FreeScale-s12x-newlib >/dev/null
+	git pull
+	popd >/dev/null
+fi
+popd >/dev/null
 }
 
 function clean_gcc {
-	# I used the sources from gcc-m68hc1x from ubuntu/debian
-	if [ -d gcc-build ] ; then
-		rm -rf gcc-build
-	fi
-}
-
-function prep_gcc {
-	echo "Prepping GCC source"
-	if [ -f gcc-m68hc1x_3.3.6+3.1+dfsg/PREPPED ] ; then
-		return
-	fi
-	if [ ! -d gcc-m68hc1x-3.3.6+3.1+dfsg/gcc-3.3.6 ] ; then
-		tar xvzf gcc-m68hc1x_3.3.6+3.1+dfsg.orig.tar.gz
-		gunzip -cd gcc-m68hc1x_3.3.6+3.1+dfsg-3.diff.gz |patch -p0
-		pushd gcc-m68hc1x-3.3.6+3.1+dfsg 
-		tar xvfj gcc-3.3.6.tar.bz2 && \
-		pushd gcc-3.3.6 
-		cat ../gcc-3.3.6-m68hc1x-20060122.diffs |patch -p1 
-		touch PREPPED
-		popd
-		popd
-	fi
+pushd "${BUILDDIR}" >/dev/null
+# I used the sources from gcc-m68hc1x from ubuntu/debian
+if [ -d gcc-build ] ; then
+	rm -rf gcc-build
+fi
+popd >/dev/null
 }
 
 function clean_newlib {
-	# I used the sources from newlib-m68hc1x from ubuntu/debian
-	if [ -d newlib-build ] ; then
-		rm -rf newlib-build
-	fi
-}
-
-function prep_newlib {
-	# I used the sources from newlib-m68hc1x from ubuntu/debian
-	echo "Prepping newlib source"
-	if [ -f newlib-1.18.0/PREPPED ] ; then
-		return
-	fi
-	if [ ! -d newlib-1.18.0 ] ; then
-		tar xvzf newlib_1.18.0.orig.tar.gz
-	fi
+pushd "${BUILDDIR}" >/dev/null
+# I used the sources from newlib-m68hc1x from ubuntu/debian
+if [ -d newlib-build ] ; then
+	rm -rf newlib-build
+fi
+popd >/dev/null
 }
 
 function done_all {
-	echo "
+echo "
 
 				ALL DONE!!!
 Binary should be in the $CWD/Output Directory
-	
+
 "
 }
 
@@ -270,15 +280,15 @@ fi
 case "$1" in
 	all) 
 	dl_binutils
-	prep_gcc
-	prep_newlib
+	dl_gcc
+	dl_newlib
 	build_toolchain 
 	done_all
 	;;
 	get_pre_reqs)
 	dl_binutils
-	prep_gcc
-	prep_newlib
+	dl_gcc
+	dl_newlib
 	;;
 	clean)
 	cleanup
