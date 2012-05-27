@@ -1,15 +1,26 @@
 #!/bin/bash
-# Making FreeEMS Crosstools for FreeEMS under OS-X 
+# Making Crosstools for mc9s12x under OS-X 
 #
-# David J. Andruczyk, 2010
+# Copyright 2010-2012 David J. Andruczyk
 #
 
 # ADJUST THIS TO SUIT
 
 CWD=$(pwd)
-
-DSTDIR=${CWD}/toolchain
+SRCDIR="${CWD}"/sources
+BUILDDIR="${CWD}"/build
+DSTDIR="${CWD}"/toolchain
 CC=gcc
+PROCS=1
+
+if [ ! -d "${BUILDDIR}" ] ; then
+	mkdir "${BUILDDIR}"
+fi
+
+if [ ! -d "${SRCDIR}" ] ; then
+	mkdir "${SRCDIR}"
+fi
+
 HAVE_LLVM=$(gcc -v 2>&1|grep -c LLVM)
 if [ $HAVE_LLVM -gt 0 ] ; then
 	echo "LLVM compiler detected, searching for alternative..."
@@ -37,13 +48,13 @@ if [ -d mc9s12x-build ] ; then
 fi
 mkdir mc9s12x-build 
 pushd mc9s12x-build  >/dev/null
-"${BUILDDIR}"/FreeScale-s12x-binutils/src/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/FreeScale-s12x-binutils/src/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
 make -j"${PROCS}" && \
 make install && \
 popd >/dev/null && \
 popd >/dev/null
 if [ $? -eq 0 ]; then
-        touch mc9s12x-build/GOOD
+        touch "${BUILDDIR}"/mc9s12x-build/GOOD
         return 0
 else
         return $?
@@ -61,14 +72,14 @@ if [ -d xgate-build ] ; then
 	rm -rf xgate-build
 fi
 mkdir xgate-build 
-pushd xgate-build 
-"${BUILDDIR}"/FreeScale-s12x-binutils/src/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
+pushd xgate-build  >/dev/null
+"${SRCDIR}"/FreeScale-s12x-binutils/src/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
 make && \
 make install && \
 popd >/dev/null && \
 popd >/dev/null
 if [ $? -eq 0 ]; then
-        touch xgate-build/GOOD
+        touch "${BUILDDIR}"/xgate-build/GOOD
         return 0
 else
         return $?
@@ -84,18 +95,18 @@ if [ -d gcc-build ] ; then
 	rm -rf gcc-build
 fi
 mkdir gcc-build
-pushd gcc-build
+pushd gcc-build >/dev/null
 OLDPATH=$PATH
 export PATH=$DSTDIR/bin:$PATH
 export CC=${CC}
-"${BUILDDIR}"/FreeScale-s12x-gcc/src/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
+"${SRCDIR}"/FreeScale-s12x-gcc/src/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
 make &&
 make install && \
 export PATH=$OLDPATH && \
 popd >/dev/null && \
 popd >/dev/null
 if [ $? -eq 0 ]; then
-        touch gcc-build/GOOD
+        touch "${BUILDDIR}"/gcc-build/GOOD
         return 0
 else
         return $?
@@ -116,14 +127,15 @@ mkdir newlib-build
 OLDPATH="${PATH}"
 export PATH="${DSTDIR}"/bin:"${PATH}"
 export CC=${CC}
-pushd newlib-build && \
-"${BUILDDIR}"/FreeScale-s12x-newlib/src/configure --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="${DSTDIR}" && \
+pushd newlib-build >/dev/null && \
+"${SRCDIR}"/FreeScale-s12x-newlib/src/configure --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="${DSTDIR}" && \
 make  && \
 make install && \
 export PATH="${OLDPATH}" && \
-popd
+popd >/dev/null && \
+popd >/dev/null
 if [ $? -eq 0 ]; then
-        touch newlib-build/GOOD
+        touch "${BUILDDIR}"/newlib-build/GOOD
         return 0
 else
         return $?
@@ -208,20 +220,20 @@ pushd "${BUILDDIR}" >/dev/null
 
 function dl_binutils {
 # checkout Dave's fork of Seank's FreeScale-s12x-binutils
-pushd "${BUILDDIR}" >/dev/null
+pushd "${SRCDIR}" >/dev/null
 echo "Cloning binutils git tree locally"
 if [ ! -d FreeScale-s12x-binutils ] ; then
 	git clone http://github.com/djandruczyk/FreeScale-s12x-binutils.git 
 else
-	pushd FreeScale-s12x-binutils
+	pushd FreeScale-s12x-binutils >/dev/null
 	git pull
-	popd
+	popd >/dev/null
 fi
 popd >/dev/null
 }
 
 function dl_gcc {                                                               
-pushd "${BUILDDIR}" >/dev/null
+pushd "${SRCDIR}" >/dev/null
 if [ ! -d FreeScale-s12x-gcc ] ; then
     echo "Downloading GCC from seank's repo"
     git clone git://github.com/seank/FreeScale-s12x-gcc.git
@@ -234,7 +246,7 @@ popd >/dev/null
 }
 
 function dl_newlib {
-pushd "${BUILDDIR}" >/dev/null
+pushd "${SRCDIR}" >/dev/null
 if [ ! -d FreeScale-s12x-newlib ] ; then
 	git clone git://github.com/seank/FreeScale-s12x-newlib.git
 else
