@@ -48,7 +48,7 @@ if [ -d mc9s12x-build ] ; then
 fi
 mkdir mc9s12x-build 
 pushd mc9s12x-build  >/dev/null
-"${SRCDIR}"/FreeScale-s12x-binutils/src/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/FreeScale-s12x-binutils/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
 make -j"${PROCS}" && \
 make install && \
 popd >/dev/null && \
@@ -73,7 +73,7 @@ if [ -d xgate-build ] ; then
 fi
 mkdir xgate-build 
 pushd xgate-build  >/dev/null
-"${SRCDIR}"/FreeScale-s12x-binutils/src/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/FreeScale-s12x-binutils/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
 make && \
 make install && \
 popd >/dev/null && \
@@ -148,8 +148,9 @@ function build_toolchain {
 if [ ! -d "${DSTDIR}" ]; then
 	mkdir "${DSTDIR}"
 else
-	echo "${DSTDIR} ALREADY EXISTS, thismay not be what you want!!!"
-	sleep 2
+	echo "${DSTDIR} ALREADY EXISTS"
+	echo "This may not be what you want!!!, you have 5 seconds to abort!"
+	sleep 5
 fi
 echo "Target is ${DSTDIR}"	
 build_mc9s12x_binutils
@@ -223,7 +224,7 @@ function dl_binutils {
 pushd "${SRCDIR}" >/dev/null
 echo "Cloning binutils git tree locally"
 if [ ! -d FreeScale-s12x-binutils ] ; then
-	git clone http://github.com/djandruczyk/FreeScale-s12x-binutils.git 
+	git clone git://github.com/seank/FreeScale-s12x-binutils.git 
 else
 	pushd FreeScale-s12x-binutils >/dev/null
 	git pull
