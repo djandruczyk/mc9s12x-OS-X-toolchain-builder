@@ -1,40 +1,48 @@
 #!/bin/bash
-# Making Crosstools for mc9s12x under OS-X 
+# Very hack script for Making Crosstools for mc9s12x under OS-X 
 #
-# Copyright 2010-2012 David J. Andruczyk
+# Copyright 2010-2013 David J. Andruczyk
 #
 
 # ADJUST THIS TO SUIT
 
 CWD=$(pwd)
 SRCDIR="${CWD}"/sources
+GCC_GIT="http://git.libreems.org/libreems-suite/s12x-gcc.git"
+GCC_BRANCH="tmp-for-dave"
+GCC_DIR="gcc-mc9s12x"
+NEWLIB_GIT="http://git.libreems.org/libreems-suite/s12x-newlib.git"
+NEWLIB_DIR="newlib-mc9s12x"
+BINUTILS_URI="http://ftp.gnu.org/gnu/binutils/"
+BINUTILS_TAR=binutils-2.24.tar.bz2
+BINUTILS_DIR="binutils-2.24"
 BUILDDIR="${CWD}"/build
-DSTDIR="${CWD}"/toolchain
+DSTDIR="${CWD}"/toolchain/opt/mc9s12x
 CC=gcc
 PROCS=1
 
 if [ ! -d "${BUILDDIR}" ] ; then
-	mkdir "${BUILDDIR}"
+    mkdir "${BUILDDIR}"
 fi
 
 if [ ! -d "${SRCDIR}" ] ; then
-	mkdir "${SRCDIR}"
+    mkdir "${SRCDIR}"
 fi
 
 HAVE_LLVM=$(gcc -v 2>&1|grep -c LLVM)
-if [ $HAVE_LLVM -gt 0 ] ; then
-	echo "LLVM compiler detected, searching for alternative..."
-	for i in `ls -1 /usr/bin |grep gcc` ; do
-		if [ $(${i} -v 2>&1|grep -c LLVM) -eq 1 ] ; then
-			echo "$i is unsuitable"
-		else
-			echo "$i is OK"
-			CC=$i
-			break;
-		fi
-	done
+if [ ${HAVE_LLVM} -gt 0 ] ; then
+    echo "LLVM compiler detected, searching for alternative..."
+    for i in `ls -1 /usr/bin |grep gcc` ; do
+        if [ $(${i} -v 2>&1|grep -c LLVM) -eq 1 ] ; then
+            echo "$i is unsuitable"
+        else
+            echo "$i is OK"
+            CC=$i
+            break;
+        fi
+    done
 fi
-#echo "CC is $CC"
+#echo "CC is ${CC}"
 
 function build_mc9s12x_binutils {
 pushd "${BUILDDIR}" >/dev/null
@@ -44,13 +52,17 @@ if [ -f mc9s12x-build/GOOD ] ; then
         return 0
 fi
 if [ -d mc9s12x-build ] ; then
-	rm -rf mc9s12x-build
+    rm -rf mc9s12x-build
 fi
 mkdir mc9s12x-build 
 pushd mc9s12x-build  >/dev/null
-"${SRCDIR}"/FreeScale-s12x-binutils/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=m68hc11- --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/"${BINUTILS_DIR}"/configure --disable-werror --target=m68hc11 --enable-targets=m68hc11,m68hc12,xgate --program-prefix=mc9s12x- --disable-nls --prefix="${DSTDIR}" && \
 make -j"${PROCS}" && \
 make install && \
+for i in addr2line ar as c++filt elfedit gprof ld.bfd ld nm objcopy objdump ranlib readelf size strings strip ; do \
+    ln -s mc9s12x-$i "${DSTDIR}"/bin/m68hc11-$i
+    ln -s mc9s12x-$i "${DSTDIR}"/bin/m68hc12-$i
+done
 popd >/dev/null && \
 popd >/dev/null
 if [ $? -eq 0 ]; then
@@ -69,11 +81,11 @@ if [ -f xgate-build/GOOD ] ; then
         return 0
 fi
 if [ -d xgate-build ] ; then
-	rm -rf xgate-build
+    rm -rf xgate-build
 fi
 mkdir xgate-build 
 pushd xgate-build  >/dev/null
-"${SRCDIR}"/FreeScale-s12x-binutils/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/"${BINUTILS_DIR}"/configure --target=xgate --enable-targets=m68hc11,m68hc12,xgate --program-prefix=xgate- --disable-nls --prefix="${DSTDIR}" && \
 make && \
 make install && \
 popd >/dev/null && \
@@ -92,17 +104,17 @@ if [ -f gcc-build/GOOD ] ; then
         return 0
 fi
 if [ -d gcc-build ] ; then
-	rm -rf gcc-build
+    rm -rf gcc-build
 fi
 mkdir gcc-build
 pushd gcc-build >/dev/null
-OLDPATH=$PATH
-export PATH=$DSTDIR/bin:$PATH
+OLDPATH=${PATH}
+export PATH=${DSTDIR}/bin:${PATH}
 export CC=${CC}
-"${SRCDIR}"/FreeScale-s12x-gcc/src/configure --target=m68hc11 --program-prefix=m68hc11- --disable-nls --enable-languages=c --prefix="$DSTDIR" && \
+"${SRCDIR}"/"${GCC_DIR}"/src/configure --target=m68hc11 --program-prefix=mc9s12x- --without-headers --disable-checking --with-gnu-as --with-gnu-ld --disable-nls --enable-languages=c --prefix="${DSTDIR}" && \
 make &&
 make install && \
-export PATH=$OLDPATH && \
+export PATH=${OLDPATH} && \
 popd >/dev/null && \
 popd >/dev/null
 if [ $? -eq 0 ]; then
@@ -121,14 +133,14 @@ if [ -f newlib-build/GOOD ] ; then
         return 0
 fi
 if [ -d newlib-build ] ; then
-	rm -rf newlib-build
+    rm -rf newlib-build
 fi
 mkdir newlib-build
 OLDPATH="${PATH}"
 export PATH="${DSTDIR}"/bin:"${PATH}"
 export CC=${CC}
 pushd newlib-build >/dev/null && \
-"${SRCDIR}"/FreeScale-s12x-newlib/src/configure --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="${DSTDIR}" && \
+"${SRCDIR}"/"${NEWLIB_DIR}"/src/configure --target=m68hc11 --disable-multilib --disable-shared --disable-threads --disable-nls --prefix="${DSTDIR}" && \
 make  && \
 make install && \
 export PATH="${OLDPATH}" && \
@@ -146,100 +158,102 @@ fi
 function build_toolchain {
 # Make a clean TARGET location to stick everything
 if [ ! -d "${DSTDIR}" ]; then
-	mkdir "${DSTDIR}"
+    mkdir "${DSTDIR}"
 else
-	echo "${DSTDIR} ALREADY EXISTS"
-	echo "This may not be what you want!!!, you have 5 seconds to abort!"
-	sleep 5
+    echo "${DSTDIR} ALREADY EXISTS"
+    echo "This may not be what you want!!!, you have 5 seconds to abort!"
+    sleep 5
 fi
-echo "Target is ${DSTDIR}"	
+echo "Target is ${DSTDIR}"  
 build_mc9s12x_binutils
 res=$?
 binutils_mc9s12x_res=$res
 if [ $res -ne 0 ] ; then
-	printf "\b\nFailure compiling hcs12x binutils, result code %i\n" $res
-	exit -1
+    printf "\b\nFailure compiling mc9s12x binutils, result code %i\n" $res
+    exit -1
 fi
 build_xgate_binutils
 res=$?
 binutils_xgate_res=$res
 if [ $res -ne 0 ] ; then
-	printf "\b\nFailure compiling xgate binutils, result code %i\n" $res
-	exit -1
+    printf "\b\nFailure compiling xgate binutils, result code %i\n" $res
+    exit -1
 fi
 
 build_gcc
 res=$?
 gcc_res=$?
 if [ $res -ne 0 ] ; then
-	printf "\b\nFailure compiling GCC, result code %i\n" $res
-	exit -1
+    printf "\b\nFailure compiling GCC, result code %i\n" $res
+    exit -1
 fi
 
 build_newlib
 res=$?
 newlib_res=$?
 if [ $res -ne 0 ] ; then
-	printf "\b\nFailure compiling newlib, result code %i\n" $res
-	exit -1
+    printf "\b\nFailure compiling newlib, result code %i\n" $res
+    exit -1
 fi
 
 echo "
-	Compilation Results:
-	Binutils OS-X->hc11:         $binutils_mc9s12x_res
-	Binutils OS-X->xgate:        $binutils_xgate_res
-	GCC OS-X->hc11:		     $gcc_res
-	Newlib OS-X->hc11:           $newlib_res
+    Compilation Results:
+    Binutils OS-X->hc11:         $binutils_mc9s12x_res
+    Binutils OS-X->xgate:        $binutils_xgate_res
+    GCC OS-X->hc11:          $gcc_res
+    Newlib OS-X->hc11:           $newlib_res
 
-		"
+        "
 
 if [ $binutils_mc9s12x_res -eq 0 ] && \
-	[ $binutils_xgate_res -eq 0 ] && \
-	[ $gcc_res -eq 0 ] && \
-	[ $newlib_res -eq 0 ] ; then
-	echo "Everything compiled OK!!!"
+    [ $binutils_xgate_res -eq 0 ] && \
+    [ $gcc_res -eq 0 ] && \
+    [ $newlib_res -eq 0 ] ; then
+    echo "Everything compiled OK!!!"
 fi
 }
 
 function cleanup {
-	echo "Cleaning out build directories"
-	clean_binutils
-	clean_gcc
-	clean_newlib
-	echo "All build dirs cleaned out"
+    echo "Cleaning out build directories"
+    clean_binutils
+    clean_gcc
+    clean_newlib
+    echo "All build dirs cleaned out"
 }
 
 function clean_binutils {
 pushd "${BUILDDIR}" >/dev/null
-	if [ -d mc9s12x-build ] ; then
-		rm -rf mc9s12x-build
-	fi
-	if [ -d xgate-build ] ; then
-		rm -rf xgate-build
-	fi
+    if [ -d mc9s12x-build ] ; then
+        rm -rf mc9s12x-build
+    fi
+    if [ -d xgate-build ] ; then
+        rm -rf xgate-build
+    fi
 }
 
 function dl_binutils {
 # checkout Dave's fork of Seank's FreeScale-s12x-binutils
 pushd "${SRCDIR}" >/dev/null
-echo "Cloning binutils git tree locally"
-if [ ! -d FreeScale-s12x-binutils ] ; then
-	git clone git://github.com/seank/FreeScale-s12x-binutils.git 
+if [ ! -f ${BINUTILS_TAR} ] ; then
+    wget -c  ${BINUTILS_URI}/${BINUTILS_TAR} -O ${BINUTILS_TAR}
+    tar xvf ${BINUTILS_TAR}
 else
-	pushd FreeScale-s12x-binutils >/dev/null
-	git pull
-	popd >/dev/null
+    dl_hash=`md5 -q "${BINUTILS_TAR}"`
+    expected_hash=`cat ${BINUTILS_TAR}.md5`
+    RESULT=$?
+    if [ ${dl_hash} != ${expected_hash} ] ; then
+        wget -c "${BINUTILS_URI}"/"${BINUTILS_TAR}" -O "${BINUTILS_TAR}"
+        tar xvf ${BINUTILS_TAR}
+    fi
 fi
-popd >/dev/null
 }
 
 function dl_gcc {                                                               
 pushd "${SRCDIR}" >/dev/null
-if [ ! -d FreeScale-s12x-gcc ] ; then
-    echo "Downloading GCC from seank's repo"
-    git clone git://github.com/seank/FreeScale-s12x-gcc.git
+if [ ! -d "${GCC_DIR}" ] ; then
+    git clone  -b "${GCC_BRANCH}" "${GCC_GIT}" "${GCC_DIR}"
 else
-    pushd FreeScale-s12x-gcc >/dev/null
+    pushd "${GCC_DIR}" >/dev/null
     git pull
     popd >/dev/null
 fi
@@ -248,12 +262,12 @@ popd >/dev/null
 
 function dl_newlib {
 pushd "${SRCDIR}" >/dev/null
-if [ ! -d FreeScale-s12x-newlib ] ; then
-	git clone git://github.com/seank/FreeScale-s12x-newlib.git
+if [ ! -d "${NEWLIB_DIR}" ] ; then
+    git clone "${NEWLIB_GIT}" "${NEWLIB_DIR}"                                   
 else
-	pushd FreeScale-s12x-newlib >/dev/null
-	git pull
-	popd >/dev/null
+    pushd "${NEWLIB_DIR}" >/dev/null
+    git pull
+    popd >/dev/null
 fi
 popd >/dev/null
 }
@@ -262,7 +276,7 @@ function clean_gcc {
 pushd "${BUILDDIR}" >/dev/null
 # I used the sources from gcc-m68hc1x from ubuntu/debian
 if [ -d gcc-build ] ; then
-	rm -rf gcc-build
+    rm -rf gcc-build
 fi
 popd >/dev/null
 }
@@ -271,7 +285,7 @@ function clean_newlib {
 pushd "${BUILDDIR}" >/dev/null
 # I used the sources from newlib-m68hc1x from ubuntu/debian
 if [ -d newlib-build ] ; then
-	rm -rf newlib-build
+    rm -rf newlib-build
 fi
 popd >/dev/null
 }
@@ -279,35 +293,35 @@ popd >/dev/null
 function done_all {
 echo "
 
-				ALL DONE!!!
-Binary should be in the $CWD/Output Directory
+                ALL DONE!!!
+Binary should be in the ${CWD}/Output Directory
 
 "
 }
 
 if [ $# -ne 1 ] ; then
-	echo "Invalid args, need <all|get_pre_reqs|clean>"
-	exit
+    echo "Invalid args, need <all|get_pre_reqs|clean>"
+    exit
 fi
 
 case "$1" in
-	all) 
-	dl_binutils
-	dl_gcc
-	dl_newlib
-	build_toolchain 
-	done_all
-	;;
-	get_pre_reqs)
-	dl_binutils
-	dl_gcc
-	dl_newlib
-	;;
-	clean)
-	cleanup
-	;;
-	*)
-	echo "Invalid choice!"
-	exit -1
-	;;
+    all) 
+    dl_binutils
+    dl_gcc
+    dl_newlib
+    build_toolchain 
+    done_all
+    ;;
+    get_pre_reqs)
+    dl_binutils
+    dl_gcc
+    dl_newlib
+    ;;
+    clean)
+    cleanup
+    ;;
+    *)
+    echo "Invalid choice!"
+    exit -1
+    ;;
 esac
